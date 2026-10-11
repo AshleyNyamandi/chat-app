@@ -2,6 +2,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.model.js';
 import { generateAccessToken, generateRefreshToken } from '../lib/utlls.js';
+import { sendWelcomeEmail } from '../emails/emailHandles.js';
+import { CLIENT_URL } from '../lib/env.js';
 
 
 export const signup = async (req, res, next) => {
@@ -33,6 +35,7 @@ export const signup = async (req, res, next) => {
       password: hashedPassword,
     });
 
+    if (newUser) {
     // Generate tokens
     const accessToken = generateAccessToken(newUser._id);
     const refreshToken = generateRefreshToken(newUser._id);
@@ -52,6 +55,12 @@ export const signup = async (req, res, next) => {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
+    try {
+      await sendWelcomeEmail(newUser.email, newUser.fullName, CLIENT_URL)
+    } catch (error) {
+      console.error("Error sending welcome email:", error.message)
+    }
+
     // Remove password from response
     const userResponse = {
       _id: newUser._id,
@@ -65,6 +74,8 @@ export const signup = async (req, res, next) => {
       message: 'User registered successfully',
       data: userResponse,
     });
+    }
+
   } catch (error) {
     next(error);
   }
