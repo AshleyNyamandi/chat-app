@@ -10,5 +10,7 @@ export const {
     RESEND_API_KEY,
     EMAIL_FROM,
     EMAIL_FROM_NAME,
-    CLIENT_URL
+    CLIENT_URL,
+    SUPABASE_SERVICE_ROLE, 
+    SUPABASE_URL 
 } = process.env;

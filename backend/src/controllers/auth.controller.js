@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import User from '../models/User.model.js';
 import { generateAccessToken, generateRefreshToken } from '../lib/utlls.js';
 import { sendWelcomeEmail } from '../emails/emailHandles.js';
 import { CLIENT_URL } from '../lib/env.js';
+import { supabase } from '../lib/supabase.js';
 
 
 export const signup = async (req, res, next) => {
@@ -37,8 +37,8 @@ export const signup = async (req, res, next) => {
 
     if (newUser) {
     // Generate tokens
-    const accessToken = generateAccessToken(newUser._id);
-    const refreshToken = generateRefreshToken(newUser._id);
+    const accessToken = generateAccessToken(newUser._id, newUser.email);
+    const refreshToken = generateRefreshToken(newUser._id, newUser.email);
 
     // Set cookies
     res.cookie('accessToken', accessToken, {
@@ -72,10 +72,141 @@ export const signup = async (req, res, next) => {
 
     return res.status(201).json({
       message: 'User registered successfully',
-      data: userResponse,
+      data: userResponse, 
     });
     }
 
+  } catch (error) {
+    console.error("Error in the signup controller: ", error.message)
+    next(error);
+  }
+};
+
+export const login = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        message: 'Email and password are required',
+      });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({
+        message: 'Invalid email or password',
+      });
+    }
+
+    // Compare passwords
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    if (!isPasswordCorrect) {
+      return res.status(400).json({
+        message: 'Invalid email or password',
+      });
+    }
+
+    // Generate tokens
+    const accessToken = generateAccessToken(user._id, user.email);
+    const refreshToken = generateRefreshToken(user._id, user.email);
+
+    // Set cookies
+    res.cookie('accessToken', accessToken);
+    res.cookie('refreshToken', refreshToken);
+
+    const userResponse = {
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      profilePic: user.profilePic,
+      createdAt: user.createdAt,
+    };
+
+    return res.status(200).json({
+      message: 'Logged in successfully',
+      data: userResponse,
+    });
+  } catch (error) {
+    console.error("error in the login controller: ", error.message)
+    next(error);
+  }
+};
+
+export const logout = async (req, res, next) => {
+  try {
+    // Clear both cookies
+    res.clearCookie('accessToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+
+    return res.status(200).json({
+      message: 'Logged out successfully',
+    });
+  } catch (error) {
+    console.error("Error in the logout controller: ", error.message)
+    next(error);
+  }
+};
+
+export const updateProfile = async (req, res, next) => {
+  try {
+    const userId = req.userId;  
+    
+    
+    
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found." });
+
+        const fileExtension = req.file.originalname.split(".").pop();
+        const fileName = `pps/profile-pic-${Math.random().toString(36).substring(2, 7)}.${fileExtension}`
+
+    const { data, error: uploadError } = await supabase.storage
+    .from("nymd-interview-pp")
+    .upload(filePath, res.file.buffer,  {
+                contentType: req.file.mimetype,
+                cacheControl: "3600",
+                upsert: false
+            });
+
+
+        if (uploadError) {
+            console.log(uploadError)
+            return res.status(500).json({ message: "Avatar upload failed", error: uploadError.message });
+        }
+
+        // Public URL of the uploaded asset
+        const { data: urlData } = supabase.storage
+            .from("nymd-interview-pp")
+            .getPublicUrl(filePath);
+
+        const publicFileUrl = urlData.publicUrl;            
+    
+    user.profilePic = publicFileUrl;
+    await user.save();
+
+    const userResponse = {
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      profilePic: user.profilePic,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+
+    return res.status(200).json({
+      message: "Profile picture successfully updated",
+      data: userResponse,
+    });
   } catch (error) {
     next(error);
   }
