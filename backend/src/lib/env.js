@@ -12,5 +12,6 @@ export const {
     EMAIL_FROM_NAME,
     CLIENT_URL,
     SUPABASE_SERVICE_ROLE, 
-    SUPABASE_URL 
+    SUPABASE_URL,
+    ARCJET_KEY 
 } = process.env;

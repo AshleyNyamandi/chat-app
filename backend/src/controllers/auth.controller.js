@@ -158,9 +158,9 @@ export const logout = async (req, res, next) => {
   }
 };
 
-export const updateProfile = async (req, res, next) => {
+export const updateProfile = async (req, res, next) => {  
   try {
-    const userId = req.userId;  
+    const userId = req.user._id;  
     
     
     
@@ -168,15 +168,18 @@ export const updateProfile = async (req, res, next) => {
     if (!user) return res.status(404).json({ message: "User not found." });
 
         const fileExtension = req.file.originalname.split(".").pop();
-        const fileName = `pps/profile-pic-${Math.random().toString(36).substring(2, 7)}.${fileExtension}`
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-'); 
+        const fileName = `profile-pic-${timestamp}-${Math.random().toString(36).substring(2, 7)}.${fileExtension}`;
 
-    const { data, error: uploadError } = await supabase.storage
-    .from("nymd-interview-pp")
-    .upload(filePath, res.file.buffer,  {
-                contentType: req.file.mimetype,
-                cacheControl: "3600",
-                upsert: false
-            });
+        const filePath = `profile-pics/${fileName}`
+
+        const { data, error: uploadError } = await supabase.storage
+        .from("nymd-interview-app")
+        .upload(filePath, res.file.buffer,  {
+                    contentType: req.file.mimetype,
+                    cacheControl: "3600",
+                    upsert: false
+                });
 
 
         if (uploadError) {
