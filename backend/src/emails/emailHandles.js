@@ -1,7 +1,7 @@
 import { resendClient, sender } from "../lib/resend.js";
 import { createWelcomeEmailTemplate } from "./emailTemplates.js";
 
-export const sendWelcomeEmail = (email, name, clientURL) => {
+export const sendWelcomeEmail = async(email, name, clientURL) => {
 const { data, error } = await resendClient.emails.send({
     from:  `${sender.name} ${sender.email}`,
     to: email,
@@ -9,9 +9,10 @@ const { data, error } = await resendClient.emails.send({
     html: createWelcomeEmailTemplate(sender.email, clientURL),
   });       
   if (error) {
-    return res.status(400).json({ error });
+    console.error("Error sending welcome email:", error.message);
+    throw new Error("Failed to send welcome email");
   }
 
-  res.status(200).json({ data });
+  console.log("Welcome Email sent successfully", data);
  
 }
