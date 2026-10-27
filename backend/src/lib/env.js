@@ -13,5 +13,6 @@ export const {
     CLIENT_URL,
     SUPABASE_SERVICE_ROLE, 
     SUPABASE_URL,
-    ARCJET_KEY 
+    ARCJET_KEY,
+    NODE_ENV 
 } = process.env;

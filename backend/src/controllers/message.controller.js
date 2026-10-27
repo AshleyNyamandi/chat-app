@@ -1,3 +1,4 @@
+import { getReceiverSocketId } from "../lib/socket.js";
 import { supabase } from "../lib/supabase.js";
 import Message from "../models/Message.js";
 import User from "../models/User.model.js";
@@ -67,64 +68,73 @@ export const getMessagesByUserId = async(req, res, next) => {
     }
 };
 
-export const sendMessage = async(req, res, next) => {
-    try {
-        const { text } = req.body;
 
-        const { _id: senderId } = req.user
-        const { id: recieverId } = req.params;
+export const sendMessage = async (req, res, next) => {
+  try {
+    const { text } = req.body;
 
-        const reciever = await User.findById(recieverId);
-
-        if (!reciever) {
-            return res.status(404).json({
-                message: "User not found"
-            })
-        }
-
-        if (req.file) {
-
-            const fileExtension = req.file.originalname.split(".").pop();
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-'); 
-            const fileName = `profile-pic-${timestamp}-${Math.random().toString(36).substring(2, 7)}.${fileExtension}`;
-    
-            const filePath = `message-images/${fileName}`;
-    
-            const {data, error: uploadError} = await supabase.storage
-            .from("nymd-interview-app")
-            .upload(filePath, res.file.buffer,  {
-                        contentType: req.file.mimetype,
-                        cacheControl: "3600",
-                        upsert: false
-                    });
-    
-    
-            if (uploadError) {
-                console.error(uploadError)
-                return res.status(500).json({ message: "Image saving failed", error: uploadError.message });
-            }
-    
-            // Public URL of the uploaded asset
-            const { data: urlData } = supabase.storage
-                .from("nymd-interview-app")
-                .getPublicUrl(filePath);
-    
-                const publicFileUrl = urlData.publicUrl;   
-            }
-        
-        const message = await Message.create({
-            senderId,
-            recieverId,
-            text,
-            image: publicFileUrl || ""
-        })
-
-        res.status(201).json({
-            message: "Message recieved",
-            data: message
-        })
-    } catch (error) {
-        console.error("error in the sendMessage controller: ", error.message);
-        next();        
+    if (!text?.trim() && !req.file) {
+      return res.status(400).json({ message: "Message cannot be empty" });
     }
-}
+
+    const { _id: senderId } = req.user;
+    const { id: receiverId } = req.params;
+
+    const receiver = await User.findById(receiverId);
+    if (!receiver) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    let publicFileUrl = null;
+
+    if (req.file) {
+      const fileExtension = req.file.originalname.split(".").pop();
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const fileName = `message-image-${timestamp}-${Math.random()
+        .toString(36)
+        .substring(2, 7)}.${fileExtension}`;
+      const filePath = `message-images/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("nymd-interview-app")
+        .upload(filePath, req.file.buffer, {
+          contentType: req.file.mimetype,
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error(uploadError);
+        return res
+          .status(500)
+          .json({ message: "Image saving failed", error: uploadError.message });
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("nymd-interview-app")
+        .getPublicUrl(filePath);
+
+      publicFileUrl = urlData.publicUrl;
+    }
+
+    const message = await Message.create({
+      senderId,
+      receiverId,               
+      text: text?.trim() || "",
+      image: publicFileUrl || "",
+    });
+
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("newMessage", message);
+    }
+
+    res.status(201).json({
+      message: "Message sent",
+      data: message,
+    });
+  } catch (error) {
+    console.error("error in the sendMessage controller:", error.message);
+    next(error);
+  }
+};
