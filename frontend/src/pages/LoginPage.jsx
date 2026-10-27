@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore';
 import { Mail, MessageCircle, Lock, Loader } from 'lucide-react';
 import { Link } from 'react-router';
@@ -46,6 +46,8 @@ const LoginPage = () => {
                       <input 
                         type="email" 
                         id="email"
+                        required
+                        autoComplete="email"
                         className='input'
                         name="email"
                         placeholder='nymd@gmail.com'
@@ -62,6 +64,8 @@ const LoginPage = () => {
                       className='input'
                         type="password" 
                         id="password"
+                        required
+                        autoComplete="current-password"
                         name="password"
                         placeholder='Enter a strong password'
                         value={formData.password}

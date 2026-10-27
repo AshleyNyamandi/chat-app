@@ -3,6 +3,9 @@ import toast from 'react-hot-toast';
 import { io } from "socket.io-client";
 
 import api from "../lib/axios";
+import { useChatStore } from "./useChatStore";
+
+let authSession = 0;
 
 export const useAuthStore = create((set, get) => ({
     authenticatedUser: null,
@@ -18,7 +21,7 @@ export const useAuthStore = create((set, get) => ({
             get().connectSocket();
         } catch (error) {
             set({authenticatedUser: null})
-            console.error("useAuthStore: ",error.message)
+            if (error.response?.status !== 401) console.error("useAuthStore: ", error.message);
 
         } finally {
             set({isCheckingAuth: false})
@@ -29,10 +32,10 @@ export const useAuthStore = create((set, get) => ({
             set({isSignUp: true});
             const response = await api.post("/auth/sign-up", data);
             set({authenticatedUser: response.data?.data || null});
-            toast.success("Sign In successfull");
+            toast.success("Account created successfully");
             get().connectSocket();
         } catch (error) {
-            toast.error(error.response.data?.message || "Error signing up");
+            toast.error(error.response?.data?.message || "Error signing up");
         } finally {
             set({isSignUp: false});
         }
@@ -53,6 +56,8 @@ export const useAuthStore = create((set, get) => ({
   logout: async () => {
     try {
       await api.post("/auth/logout");
+      authSession++;
+      useChatStore.getState().resetChat();
       set({ authenticatedUser: null });
       toast.success("Logged out successfully");
       get().disconnectSocket();
@@ -62,21 +67,24 @@ export const useAuthStore = create((set, get) => ({
     }
   },  
   updateProfile: async (data) => {
+    const session = authSession;
+    const userId = get().authenticatedUser?._id;
     try {
       const response = await api.patch("/auth/update-profile", data);
+      if (session !== authSession || get().authenticatedUser?._id !== userId) return;
       set({ authenticatedUser: response.data?.data });
       toast.success("Profile updated successfully");
     } catch (error) {
+      if (session !== authSession || get().authenticatedUser?._id !== userId) return;
       console.log("Error in update profile:", error.response?.data?.message || "Error updating profile");
-      toast.error(error.response?.data?.message);
+      toast.error(error.response?.data?.message || "Error updating profile");
     }
   },   
   connectSocket:  () => {
     const authenticatedUser = get().authenticatedUser;
-    if (!authenticatedUser || get().socket?.connected) return;
+    if (!authenticatedUser || get().socket) return;
 
-    const socket = io(import.meta.VITE_BASE_URL, {withCredentials: true});
-    socket.connect()
+    const socket = io(import.meta.env.VITE_BASE_URL || undefined, {withCredentials: true});
     set({socket})
   
     // listen for online users
@@ -85,6 +93,7 @@ export const useAuthStore = create((set, get) => ({
     })
   },
   disconnectSocket: () => {
-    if (get().socket?.connected) get().socket.disconnect();
+    get().socket?.disconnect();
+    set({ socket: null, onlineUsers: [] });
   }
 }))

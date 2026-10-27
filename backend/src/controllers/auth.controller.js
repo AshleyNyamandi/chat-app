@@ -10,7 +10,13 @@ import { supabase } from '../lib/supabase.js';
 
 export const signup = async (req, res, next) => {
   try {
-    const { fullName, email, password } = req.body;
+    const { fullName, email, password } = req.body || {};
+
+    if (typeof fullName !== "string" || !fullName.trim() ||
+        typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
+        typeof password !== "string" || password.length < 6) {
+      return res.status(400).json({ message: "Provide a name, valid email, and password of at least 6 characters" });
+    }
 
     if (!fullName || !email || !password) {
       return res.status(400).json({
@@ -86,9 +92,9 @@ export const signup = async (req, res, next) => {
 
 export const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
 
-    if (!email || !password) {
+    if (typeof email !== "string" || typeof password !== "string" || !email.trim() || !password) {
       return res.status(400).json({
         message: 'Email and password are required',
       });
@@ -173,6 +179,9 @@ export const logout = async (req, res, next) => {
 
 export const updateProfile = async (req, res, next) => {  
   try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Profile image is required" });
+    }
     const userId = req.user._id;  
     
     const user = await User.findById(userId);
@@ -278,7 +287,7 @@ export const refreshToken = async(req, res, next) => {
             httpOnly: true,
             sameSite: NODE_ENV === 'production' ? 'none' : 'lax',
             secure: NODE_ENV === 'production',
-            maxAge: 15 * 24 * 60 * 60 * 1000
+            maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
         res.status(200).json({

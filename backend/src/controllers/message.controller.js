@@ -1,4 +1,4 @@
-import { getReceiverSocketId } from "../lib/socket.js";
+import { io } from "../lib/socket.js";
 import { supabase } from "../lib/supabase.js";
 import Message from "../models/Message.js";
 import User from "../models/User.model.js";
@@ -14,7 +14,7 @@ export const getAllContacts = async(req, res, next) => {
         })
     } catch (error) {
         console.error("error in the getAllContacts controller: ", error.message);
-        next();
+        next(error);
     }
 };
 
@@ -25,14 +25,14 @@ export const getChatPartners = async(req, res, next) => {
       const messages =  await Message.find({
         $or: [
             {senderId: loggedInUser},
-            {recieverId: loggedInUser}
+            {receiverId: loggedInUser}
         ]
       })
 
       const chatPartnerIds = [...new Set(messages.map(
         msg => 
-            msg.senderId === msg.loggedInUser ?
-            msg.recieverId.toString()
+            msg.senderId.toString() === loggedInUser.toString() ?
+            msg.receiverId.toString()
             : msg.senderId.toString() 
         ))]
 
@@ -43,7 +43,7 @@ export const getChatPartners = async(req, res, next) => {
 
     } catch (error) {
         console.error("error in the getChatPartners controller: ", error.message);
-        next();        
+        next(error);
     }
 };
 
@@ -54,25 +54,31 @@ export const getMessagesByUserId = async(req, res, next) => {
 
         const messages = await Message.find({
             $or: [
-                {senderId: loggedInUser, recieverId: partnerId},
-                {senderId:partnerId, recieverId: loggedInUser}
+                {senderId: loggedInUser, receiverId: partnerId},
+                {senderId:partnerId, receiverId: loggedInUser}
             ]    
-        })
+        }).sort({ createdAt: 1, _id: 1 })
 
         res.status(200).json({
             data: messages
         })
     } catch (error) {
         console.error("error in the getMessagesByUserId controller: ", error.message);
-        next();        
+        next(error);
     }
 };
 
 
 export const sendMessage = async (req, res, next) => {
   try {
-    const { text } = req.body;
+    const { text } = req.body || {};
 
+    if (text !== undefined && typeof text !== "string") {
+      return res.status(400).json({ message: "Message text must be a string" });
+    }
+    if (text?.trim().length > 2000) {
+      return res.status(400).json({ message: "Message must be at most 2000 characters" });
+    }
     if (!text?.trim() && !req.file) {
       return res.status(400).json({ message: "Message cannot be empty" });
     }
@@ -124,10 +130,7 @@ export const sendMessage = async (req, res, next) => {
       image: publicFileUrl || "",
     });
 
-    const receiverSocketId = getReceiverSocketId(receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", message);
-    }
+    io.to(receiverId).emit("newMessage", message);
 
     res.status(201).json({
       message: "Message sent",

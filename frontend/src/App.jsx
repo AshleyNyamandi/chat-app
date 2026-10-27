@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import ChatPage from './pages/ChatPage'
 import LoginPage from './pages/LoginPage'

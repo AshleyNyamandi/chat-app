@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: `${import.meta.env.VITE_API_URL}`,
+    baseURL: import.meta.env.VITE_API_URL || "/api/v1",
     withCredentials: true,
 });
 
@@ -25,13 +25,14 @@ api.interceptors.response.use(
         const originalRequest = error.config;
 
         //refresh endpoint should not trigger another refresh
-        if (originalRequest?.url?.includes('/auth/refresh-token')) {
+        if (!originalRequest || ['/auth/refresh-token', '/auth/login', '/auth/sign-up'].some(path => originalRequest.url?.includes(path))) {
             return Promise.reject(error);
         }
 
         // Check if error is 401 and the request hasn't been retried yet
         if (error.response?.status === 401 && !originalRequest._retry) {
 
+            originalRequest._retry = true;
             // If we are already refreshing, queue this request
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
@@ -41,7 +42,6 @@ api.interceptors.response.use(
                 .catch((err) => Promise.reject(err));
             }
 
-            originalRequest._retry = true;
             isRefreshing = true;
 
             try {
