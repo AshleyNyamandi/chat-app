@@ -130,7 +130,7 @@ sendMessage: async ({ text, imageFile }) => {
       if (get().isSoundEnabled) {
         const notificationSound = new Audio("/sounds/notification.mp3");
         notificationSound.currentTime = 0;
-        notificationSound.play().catch((e) => console.log("Audio play failed:", e));
+        notificationSound.play().catch((e) => console.log("Audio play failed: ", e));
       }
     };
 
