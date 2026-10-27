@@ -71,6 +71,10 @@ const errorMiddleware = (err, req, res, next) => {
             error.statusCode = err.statusCode || 400;
         }
 
+        if (err.name === "MulterError") {
+            error.statusCode = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+        }
+
         // Default error
         const statusCode = error.statusCode || 500;
         const message = error.message || 'Internal Server Error';

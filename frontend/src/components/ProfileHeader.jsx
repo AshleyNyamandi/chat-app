@@ -1,4 +1,5 @@
-import React, { useRef, useState } from 'react'
+import toast from "react-hot-toast";
+import { useRef } from 'react'
 import { useChatStore } from '../store/useChatStore'
 import { useAuthStore } from '../store/useAuthStore';
 import { LogOutIcon, Volume2Icon, VolumeOffIcon } from 'lucide-react';
@@ -20,21 +21,30 @@ const ProfileHeader = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-  const formData = new FormData();
-  formData.append("file", file);    
-  const reader = new FileReader();
-  reader.readAsDataURL(file);
-  const base64Image = reader.result;
-  updateProfile(formData) 
-    };
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5 MB");
+      e.target.value = "";
+      return;
+    }
+    const formData = new FormData();
+    formData.append("file", file);
+    updateProfile(formData);
+    e.target.value = "";
+  };
 
   return (
     <div className="p-6 border-b border-slate-700/50">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           {/* AVATAR */}
-          <div className="avatar online">
+          <div className="avatar online shrink-0">
             <button
+              aria-label="Update profile picture"
               className="size-14 rounded-full overflow-hidden relative group"
               onClick={() => fileInputRef.current.click()}
             >
@@ -58,7 +68,7 @@ const ProfileHeader = () => {
           </div>
 
           {/* USERNAME & ONLINE TEXT */}
-          <div>
+          <div className="min-w-0">
             <h3 className="text-slate-200 font-medium text-base max-w-45 truncate">
               {authenticatedUser.fullName}
             </h3>
@@ -68,10 +78,11 @@ const ProfileHeader = () => {
         </div>
 
         {/* BUTTONS */}
-        <div className="flex gap-4 items-center">
+        <div className="flex gap-4 items-center shrink-0">
           {/* LOGOUT BTN */}
           <button
             className="text-slate-400 hover:text-slate-200 transition-colors"
+            aria-label="Log out"
             onClick={logout}
           >
             <LogOutIcon className="size-5" />
@@ -80,6 +91,8 @@ const ProfileHeader = () => {
           {/* SOUND TOGGLE BTN */}
           <button
             className="text-slate-400 hover:text-slate-200 transition-colors"
+            aria-label={isSoundEnabled ? "Mute sounds" : "Enable sounds"}
+            aria-pressed={isSoundEnabled}
             onClick={() => {
               // play click sound before toggling
               mouseClickSound.currentTime = 0; // reset to start

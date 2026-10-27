@@ -8,7 +8,7 @@ function ChatHeader() {
   const setSelectedUser  = useChatStore(state => state.setSelectedUser);
   const selectedUser = useChatStore(state => state.selectedUser);
   const onlineUsers  = useAuthStore(state => state.onlineUsers);
-  const isOnline = onlineUsers.includes(selectedUser._id);
+  const isOnline = onlineUsers.includes(selectedUser?._id);
 
   useEffect(() => {
     const handleEscKey = (event) => {
@@ -25,7 +25,7 @@ function ChatHeader() {
   return (
     <div
       className="flex justify-between items-center bg-slate-800/50 border-b
-   border-slate-700/50 max-h-21 px-6 flex-1"
+   border-slate-700/50 h-21 shrink-0 px-6"
     >
       <div className="flex items-center space-x-3">
         <div className={`avatar ${isOnline ? "online" : "offline"}`}>
@@ -40,7 +40,7 @@ function ChatHeader() {
         </div>
       </div>
 
-      <button onClick={() => setSelectedUser(null)}>
+      <button aria-label="Close conversation" onClick={() => setSelectedUser(null)}>
         <XIcon className="w-5 h-5 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer" />
       </button>
     </div>

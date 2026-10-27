@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useChatStore } from '../store/useChatStore';
 import ChatHeader from './ChatHeader';
 import { useAuthStore } from '../store/useAuthStore';
@@ -11,30 +11,25 @@ const ChatContainer = () => {
   const getMessagesByUserId = useChatStore(state => state.getMessagesByUserId);
   const messages =  useChatStore(state => state.messages);
   const isMessagesLoading = useChatStore(state => state.isMessagesLoading);
-  const subscribeToMessages = useChatStore(state => state.subscribeToMessages);
-  const unsubscribeFromMessages =  useChatStore(state => state.unsubscribeFromMessages);
   const authenticatedUser  = useAuthStore(state => state.authenticatedUser);
 
 
-  const messageEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   useEffect(() => {
     getMessagesByUserId(selectedUser._id);
-    subscribeToMessages();
-
-    // clean up
-    return () => unsubscribeFromMessages();
-  }, [selectedUser, getMessagesByUserId, subscribeToMessages, unsubscribeFromMessages]);
+  }, [selectedUser, getMessagesByUserId]);
 
   useEffect(() => {
-    if (messageEndRef.current) {
-      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
     }
   }, [messages]);  
   return (
     <>
       <ChatHeader />
-      <div className="flex-1 px-6 overflow-y-auto py-8">
+      <div ref={messagesContainerRef} className="flex-1 min-h-0 px-4 sm:px-6 overflow-y-auto py-8">
         {messages.length > 0 && !isMessagesLoading ? (
           <div className="max-w-3xl mx-auto space-y-6">
             {messages.map((msg) => (
@@ -62,8 +57,6 @@ const ChatContainer = () => {
                 </div>
               </div>
             ))}
-            {/* 👇 scroll target */}
-            <div ref={messageEndRef} />
           </div>
         ) : isMessagesLoading ? (
           <MessagesLoadingSkeleton />
@@ -72,7 +65,7 @@ const ChatContainer = () => {
         )}
       </div>
 
-      <MessageInput />      
+      <MessageInput key={selectedUser._id} />
     </>
   )
 }
