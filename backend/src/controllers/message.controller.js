@@ -1,4 +1,4 @@
-import { getReceiverSocketId } from "../lib/socket.js";
+import { getReceiverSocketId, io } from "../lib/socket.js";
 import { supabase } from "../lib/supabase.js";
 import Message from "../models/Message.js";
 import User from "../models/User.model.js";
