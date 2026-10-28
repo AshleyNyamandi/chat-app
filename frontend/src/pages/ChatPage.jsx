@@ -12,7 +12,7 @@ const ChatPage = () => {
   const activeTab = useChatStore(state => state.activeTab);
   const selectedUser = useChatStore(state => state.selectedUser);
   return (
-    <div className="relative w-full max-w-6xl h-200">
+    <div className="relative w-full max-w-6xl h-150">
       <div className='w-full h-full flex overflow-hidden'>
         {/* LEFT SIDE */}
         <div className="w-80 bg-slate-800/50 backdrop-blur-sm flex flex-col">
