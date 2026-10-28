@@ -5,6 +5,15 @@ import toast from "react-hot-toast";
 
 // Module-level handler reference so we can remove only OUR listener
 let newMessageHandler = null;
+let messagesRequestId = 0;
+
+const mergeMessages = (history, current) => {
+  const messagesById = new Map(history.map((message) => [message._id, message]));
+  current.forEach((message) => messagesById.set(message._id, message));
+  return [...messagesById.values()].sort(
+    (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+  );
+};
 
 export const useChatStore = create((set, get) => ({
   allContacts: [],
@@ -22,7 +31,10 @@ export const useChatStore = create((set, get) => ({
   },
 
   setActiveTab: (tab) => set({ activeTab: tab }),
-  setSelectedUser: (selectedUser) => set({ selectedUser, messages: [] }),
+  setSelectedUser: (selectedUser) => {
+    messagesRequestId += 1;
+    set({ selectedUser, messages: [], isMessagesLoading: false });
+  },
 
   getAllContacts: async () => {
     set({ isUsersLoading: true });
@@ -49,60 +61,73 @@ export const useChatStore = create((set, get) => ({
   },
 
   getMessagesByUserId: async (userId) => {
+    const requestId = ++messagesRequestId;
+    const isCurrentRequest = () =>
+      requestId === messagesRequestId && get().selectedUser?._id === userId;
     set({ isMessagesLoading: true });
     try {
       const response = await api.get(`/messages/${userId}`);
-      set({ messages: response.data.data });
+      if (isCurrentRequest()) {
+        set({ messages: mergeMessages(response.data.data, get().messages) });
+      }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Something went wrong");
+      if (isCurrentRequest()) {
+        toast.error(error.response?.data?.message || "Something went wrong");
+      }
     } finally {
-      set({ isMessagesLoading: false });
+      if (isCurrentRequest()) set({ isMessagesLoading: false });
     }
   },
 
-sendMessage: async ({ text, imageFile }) => {
-  const selectedUser = get().selectedUser;
-  if (!selectedUser) return;
+  sendMessage: async ({ text, imageFile }) => {
+    const selectedUser = get().selectedUser;
+    if (!selectedUser) return;
 
-  const authenticatedUser = useAuthStore.getState().authenticatedUser;
-  const tempId = `temp-${Date.now()}`;
+    const authenticatedUser = useAuthStore.getState().authenticatedUser;
+    const tempId = `temp-${crypto.randomUUID()}`;
 
-  
-  const localPreview = imageFile ? URL.createObjectURL(imageFile) : null;
 
-  const optimisticMessage = {
-    _id: tempId,
-    senderId: authenticatedUser._id,
-    receiverId: selectedUser._id,
-    text,
-    image: localPreview,
-    createdAt: new Date().toISOString(),
-    isOptimistic: true,
-  };
+    const localPreview = imageFile ? URL.createObjectURL(imageFile) : null;
 
-  set({ messages: [...get().messages, optimisticMessage] });
+    const optimisticMessage = {
+      _id: tempId,
+      senderId: authenticatedUser._id,
+      receiverId: selectedUser._id,
+      text,
+      image: localPreview,
+      createdAt: new Date().toISOString(),
+      isOptimistic: true,
+    };
 
-  try {
-    const formData = new FormData();
-    if (text) formData.append("text", text);
-    if (imageFile) formData.append("file", imageFile);
+    set({ messages: [...get().messages, optimisticMessage] });
 
-    const response = await api.post(
-      `/messages/send/${selectedUser._id}`,
-      formData
-    );
+    try {
+      const formData = new FormData();
+      if (text) formData.append("text", text);
+      if (imageFile) formData.append("file", imageFile);
 
-    const realMessage = response.data.data;
-    set({
-      messages: get().messages.map((m) => (m._id === tempId ? realMessage : m)),
-    });
-  } catch (error) {
-    set({ messages: get().messages.filter((m) => m._id !== tempId) });
-    toast.error(error.response?.data?.message || "Something went wrong");
-  } finally {
-    if (localPreview) URL.revokeObjectURL(localPreview);
-  }
-},
+      const response = await api.post(
+        `/messages/send/${selectedUser._id}`,
+        formData
+      );
+
+      const realMessage = response.data.data;
+      if (get().selectedUser?._id === selectedUser._id) {
+        set({
+          messages: mergeMessages(
+            get().messages.filter((message) => message._id !== tempId),
+            [realMessage]
+          ),
+        });
+      }
+      set({ chats: [selectedUser, ...get().chats.filter((chat) => chat._id !== selectedUser._id)] });
+    } catch (error) {
+      set({ messages: get().messages.filter((m) => m._id !== tempId) });
+      toast.error(error.response?.data?.message || "Something went wrong");
+    } finally {
+      if (localPreview) URL.revokeObjectURL(localPreview);
+    }
+  },
 
   subscribeToMessages: () => {
     const socket = useAuthStore.getState().socket;
@@ -115,6 +140,7 @@ sendMessage: async ({ text, imageFile }) => {
     }
 
     newMessageHandler = (newMessage) => {
+      get().getMyChatPartners();
       const selectedUser = get().selectedUser;
       if (!selectedUser) return;
 
@@ -130,7 +156,7 @@ sendMessage: async ({ text, imageFile }) => {
       if (get().isSoundEnabled) {
         const notificationSound = new Audio("/sounds/notification.mp3");
         notificationSound.currentTime = 0;
-        notificationSound.play().catch((e) => console.log("Audio play failed:", e));
+        notificationSound.play().catch((e) => console.log("Audio play failed: ", e));
       }
     };
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import ChatPage from './pages/ChatPage'
 import LoginPage from './pages/LoginPage'
@@ -21,7 +21,9 @@ const App = () => {
 
   if (isCheckingAuth) return <LoadingPage />
   return (
-    <div className="min-h-screen bg-slate-900 relative flex items-center justify-center p-4 overflow-hidden">
+    <div className={`bg-slate-900 relative flex items-center justify-center overflow-hidden ${
+      authenticatedUser ? "h-dvh p-0 md:p-4" : "min-h-screen p-4"
+    }`}>
       {/* Decorators - grid and glow shapes */}
     <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(0,0,0,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.08)_1px,transparent_1px)] bg-size-[40px_40px] -z-50" />
 
