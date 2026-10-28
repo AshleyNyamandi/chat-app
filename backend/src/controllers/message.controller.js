@@ -14,36 +14,36 @@ export const getAllContacts = async(req, res, next) => {
         })
     } catch (error) {
         console.error("error in the getAllContacts controller: ", error.message);
-        next();
+        next(error);
     }
 };
 
 export const getChatPartners = async(req, res, next) => {
     try {
       const {_id: loggedInUser} = req.user;
-      
+
       const messages =  await Message.find({
         $or: [
             {senderId: loggedInUser},
-            {recieverId: loggedInUser}
+            {receiverId: loggedInUser}
         ]
       })
 
       const chatPartnerIds = [...new Set(messages.map(
-        msg => 
-            msg.senderId === msg.loggedInUser ?
-            msg.recieverId.toString()
-            : msg.senderId.toString() 
+        msg =>
+            msg.senderId.toString() === loggedInUser.toString() ?
+            msg.receiverId.toString()
+            : msg.senderId.toString()
         ))]
 
-       const chatPartners = await User.find({_id: {$in: chatPartnerIds}}).select("-password"); 
+       const chatPartners = await User.find({_id: {$in: chatPartnerIds}}).select("-password");
        return res.status(200).json({
         data: chatPartners
        })
 
     } catch (error) {
         console.error("error in the getChatPartners controller: ", error.message);
-        next();        
+        next(error);
     }
 };
 
@@ -54,17 +54,17 @@ export const getMessagesByUserId = async(req, res, next) => {
 
         const messages = await Message.find({
             $or: [
-                {senderId: loggedInUser, recieverId: partnerId},
-                {senderId:partnerId, recieverId: loggedInUser}
-            ]    
-        })
+                {senderId: loggedInUser, receiverId: partnerId},
+                {senderId:partnerId, receiverId: loggedInUser}
+            ]
+        }).sort({ createdAt: 1, _id: 1 });
 
         res.status(200).json({
             data: messages
         })
     } catch (error) {
         console.error("error in the getMessagesByUserId controller: ", error.message);
-        next();        
+        next(error);
     }
 };
 
@@ -119,7 +119,7 @@ export const sendMessage = async (req, res, next) => {
 
     const message = await Message.create({
       senderId,
-      receiverId,               
+      receiverId,
       text: text?.trim() || "",
       image: publicFileUrl || "",
     });
