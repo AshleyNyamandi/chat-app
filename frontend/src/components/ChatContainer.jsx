@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useChatStore } from '../store/useChatStore';
 import ChatHeader from './ChatHeader';
 import { useAuthStore } from '../store/useAuthStore';
@@ -11,31 +11,28 @@ const ChatContainer = () => {
   const getMessagesByUserId = useChatStore(state => state.getMessagesByUserId);
   const messages =  useChatStore(state => state.messages);
   const isMessagesLoading = useChatStore(state => state.isMessagesLoading);
-  const subscribeToMessages = useChatStore(state => state.subscribeToMessages);
-  const unsubscribeFromMessages =  useChatStore(state => state.unsubscribeFromMessages);
   const authenticatedUser  = useAuthStore(state => state.authenticatedUser);
 
 
-  const messageEndRef = useRef(null);
+  const messagesViewportRef = useRef(null);
 
   useEffect(() => {
     getMessagesByUserId(selectedUser._id);
-    subscribeToMessages();
-
-    // clean up
-    return () => unsubscribeFromMessages();
-  }, [selectedUser, getMessagesByUserId, subscribeToMessages, unsubscribeFromMessages]);
+  }, [selectedUser._id, getMessagesByUserId]);
 
   useEffect(() => {
-    if (messageEndRef.current) {
-      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (messagesViewportRef.current) {
+      messagesViewportRef.current.scrollTo({
+        top: messagesViewportRef.current.scrollHeight,
+        behavior: "smooth",
+      });
     }
   }, [messages]);  
   return (
     <>
       <ChatHeader />
-      <div className="flex-1 px-6 overflow-y-auto py-8">
-        {messages.length > 0 && !isMessagesLoading ? (
+      <div ref={messagesViewportRef} className="flex-1 min-h-0 px-3 sm:px-6 overflow-y-auto overscroll-contain py-4 sm:py-8">
+        {messages.length > 0 ? (
           <div className="max-w-3xl mx-auto space-y-6">
             {messages.map((msg) => (
               <div
@@ -43,14 +40,14 @@ const ChatContainer = () => {
                 className={`chat ${msg.senderId === authenticatedUser._id ? "chat-end" : "chat-start"}`}
               >
                 <div
-                  className={`chat-bubble relative ${
+                  className={`chat-bubble relative min-w-0 max-w-[85%] sm:max-w-[75%] [overflow-wrap:anywhere] ${
                     msg.senderId === authenticatedUser._id
                       ? "bg-cyan-600 text-white"
                       : "bg-slate-800 text-slate-200"
                   }`}
                 >
                   {msg.image && (
-                    <img src={msg.image} alt="Shared" className="rounded-lg h-48 object-cover" />
+                    <img src={msg.image} alt="Shared" className="rounded-lg max-h-48 max-w-full object-contain" />
                   )}
                   {msg.text && <p className="mt-2">{msg.text}</p>}
                   <p className="text-xs mt-1 opacity-75 flex items-center gap-1">
@@ -62,8 +59,6 @@ const ChatContainer = () => {
                 </div>
               </div>
             ))}
-            {/* 👇 scroll target */}
-            <div ref={messageEndRef} />
           </div>
         ) : isMessagesLoading ? (
           <MessagesLoadingSkeleton />
