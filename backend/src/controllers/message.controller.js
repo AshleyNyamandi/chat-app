@@ -96,7 +96,7 @@ export const sendMessage = async (req, res, next) => {
       const filePath = `message-images/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("nymd-interview-app")
+        .from("online-school-documents")
         .upload(filePath, req.file.buffer, {
           contentType: req.file.mimetype,
           cacheControl: "3600",
@@ -111,7 +111,7 @@ export const sendMessage = async (req, res, next) => {
       }
 
       const { data: urlData } = supabase.storage
-        .from("nymd-interview-app")
+        .from("online-school-documents")
         .getPublicUrl(filePath);
 
       publicFileUrl = urlData.publicUrl;

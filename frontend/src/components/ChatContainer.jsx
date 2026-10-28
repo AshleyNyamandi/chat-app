@@ -27,7 +27,7 @@ const ChatContainer = () => {
         behavior: "smooth",
       });
     }
-  }, [messages]);  
+  }, [messages]);
   return (
     <>
       <ChatHeader />
